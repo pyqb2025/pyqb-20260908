@@ -71,7 +71,10 @@ import arviz as az # feel free to ignore the warning about the major refactoring
 #
 # Hint: the file is encoded in UTF-8 with a byte-order mark (use the `encoding` parameter of `pd.read_csv`, e.g. `encoding='utf-8-sig'`) and rename the first column to `State`.
 
-pass
+df = pd.read_csv('parasites.csv', encoding='utf-8-sig')
+df.rename(columns={'State ': 'State'}, inplace=True)
+df.head()
+
 
 # ### Exercise 2 (max 3 points)
 #
@@ -79,7 +82,9 @@ pass
 #
 # To get full marks, do not use explicit loops.
 
-pass
+print(df.groupby('Infection status')[['Shell Length', 'Weight']].mean())
+print(df.groupby('Combo')[['Shell Length', 'Weight']].mean())
+
 
 # ### Exercise 3 (max 5 points)
 #
@@ -87,13 +92,42 @@ pass
 #
 # The function must use a `while` loop to count the run. To get full marks you should declare correctly the type hints (the signature of the function) and add a doctest string.
 
-pass
+def longest_run(flags: pd.Series) -> int:
+    """
+    Return the length of the longest consecutive run of True values.
+
+    >>> longest_run(pd.Series([True, True, False, True, True, True]))
+    3
+    >>> longest_run(pd.Series([False, False, True]))
+    1
+    >>> longest_run(pd.Series([False, False]))
+    0
+    """
+    max_run = 0
+    current_run = 0
+    i = 0
+    while i < len(flags):
+        if flags.iloc[i]:
+            current_run += 1
+        else:
+            current_run = 0
+        max_run = max(max_run, current_run)
+        i += 1
+    return max_run
+
+
+import doctest
+doctest.testmod()
 
 # ### Exercise 4 (max 4 points)
 #
 # Use the function defined in Exercise 3 to check how many (Individual, Condition) pairs contain a run of 3 consecutive inactive trials (i.e., `Baseline < 1`). Note that each individual was tested exactly 3 times per condition; order the trials with `sort_values`.
 
-pass
+inactive = df.sort_values(['Individual', 'Condition', 'Trial']).copy()
+inactive['inactive'] = inactive['Baseline'] < 1
+runs = inactive.groupby(['Individual', 'Condition'])['inactive'].apply(longest_run)
+print((runs >= 3).sum())
+
 
 # ### Exercise 5 (max 4 points)
 #
@@ -101,19 +135,45 @@ pass
 #
 # To get full marks, do not use explicit loops.
 
-pass
+df['active'] = df['Baseline'] >= 1
+print(df.groupby('Condition')['active'].sum())
+print(df.groupby('Combo')['active'].sum())
+
 
 # ### Exercise 6 (max 5 points)
 #
 # For each `Combo`, compute the total number of observations and the number of observations where the snail was active (`active == True`). Make a scatter plot with `Combo` on the x-axis, the count on the y-axis, and different colors for total vs active observations. Put proper labels and a legend.
 
-pass
+combo_counts = df.groupby('Combo').agg(
+    total=('Combo', 'size'),
+    active=('active', 'sum'),
+).reset_index()
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.scatter(combo_counts['Combo'], combo_counts['total'], color='blue', label='Total observations')
+ax.scatter(combo_counts['Combo'], combo_counts['active'], color='red', label='Active (Baseline >= 1)')
+ax.set_xlabel('Combo')
+ax.set_ylabel('Count')
+_ = ax.legend()
+
 
 # ### Exercise 7 (max 5 points)
 #
 # Make a picture with a plot for each `Infection status` value (1 row, 2 columns). Each plot should be a density histogram of `Baseline`. Overlay the two `Condition` values (`none` and `pw`) in different colours with `alpha=0.5`. Put proper titles and axis labels.
 
-pass
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+colors = {'none': 'orange', 'pw': 'blue'}
+for ax, status in zip(axes, sorted(df['Infection status'].unique())):
+    for condition in ['none', 'pw']:
+        data = df[(df['Infection status'] == status) & (df['Condition'] == condition)]['Baseline']
+        ax.hist(data, density=True, alpha=0.5, color=colors[condition], bins='auto',
+                label=f'Condition = {condition}')
+    ax.set_xlabel('Baseline')
+    ax.set_ylabel('Density')
+    ax.set_title(f'Infection status = {status}')
+    ax.legend()
+_ = fig.tight_layout()
+
 
 # ### Exercise 8 (max 5 points)
 #
@@ -126,4 +186,17 @@ pass
 #
 # Use PyMC to sample the posterior distributions. Plot the posterior with `az.plot_posterior`.
 
-pass
+df_model = df.copy()
+df_model['infected'] = (df_model['Infection status'] == 1).astype(int)
+
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    beta_shell = pm.Normal('beta_shell', mu=0, sigma=1)
+    beta_weight = pm.Normal('beta_weight', mu=0, sigma=1)
+    p = pm.math.invlogit(alpha + beta_shell * df_model['Shell Length'] + beta_weight * df_model['Weight'])
+    pm.Bernoulli('obs', p=p, observed=df_model['infected'])
+    trace = pm.sample(random_seed=2107)
+
+_ = az.plot_posterior(trace)
+
+
