@@ -76,7 +76,7 @@ df.rename(columns={'State ': 'State'}, inplace=True)
 df.head()
 
 
-# ### Exercise 2 (max 3 points)
+# ### Exercise 2 (max 2 points)
 #
 # Compute the mean `Shell Length` and the mean `Weight` for each `Infection status` and for each `Combo`.
 #
@@ -86,34 +86,47 @@ print(df.groupby('Infection status')[['Shell Length', 'Weight']].mean())
 print(df.groupby('Combo')[['Shell Length', 'Weight']].mean())
 
 
-# ### Exercise 3 (max 5 points)
+# ### Exercise 3 (max 6 points)
 #
-# Define a function `longest_run` that takes a pandas Series of boolean values and returns the length of the longest consecutive run of `True` values in the Series.
+# Define a function `longest_streak` that takes two pandas Series of the same length, `active` (boolean values) and `trials` (integer trial numbers), and returns a tuple `(length, start)`: `length` is the length of the longest streak of consecutive trial numbers for which `active` is `True`, and `start` is the trial number at which that streak begins. A streak is broken whenever `active` is `False` or when two consecutive positions do not have adjacent trial numbers (e.g., trials 1 and 3 are not consecutive).
 #
-# The function must use a `while` loop to count the run. To get full marks you should declare correctly the type hints (the signature of the function) and add a doctest string.
+# If there is no streak, return `(0, 0)`.
+#
+# The function must use a `while` loop to count the streak. To get full marks you should declare correctly the type hints (the signature of the function) and add a doctest string.
 
-def longest_run(flags: pd.Series) -> int:
+def longest_streak(active: pd.Series, trials: pd.Series) -> tuple[int, int]:
     """
-    Return the length of the longest consecutive run of True values.
+    Return (length, start) of the longest streak of consecutive trial numbers
+    for which `active` is True.
 
-    >>> longest_run(pd.Series([True, True, False, True, True, True]))
-    3
-    >>> longest_run(pd.Series([False, False, True]))
-    1
-    >>> longest_run(pd.Series([False, False]))
-    0
+    >>> longest_streak(pd.Series([True, True, True, False, True]), pd.Series([1, 2, 3, 5, 6]))
+    (3, 1)
+    >>> longest_streak(pd.Series([True, True]), pd.Series([1, 3]))
+    (1, 1)
+    >>> longest_streak(pd.Series([False, True, True, True]), pd.Series([10, 11, 12, 13]))
+    (3, 11)
+    >>> longest_streak(pd.Series([False, False]), pd.Series([1, 2]))
+    (0, 0)
     """
-    max_run = 0
-    current_run = 0
+    max_streak = 0
+    start = 0
+    current_streak = 0
+    current_start = 0
     i = 0
-    while i < len(flags):
-        if flags.iloc[i]:
-            current_run += 1
+    while i < len(active):
+        if active.iloc[i]:
+            if current_streak == 0 or trials.iloc[i] != trials.iloc[i - 1] + 1:
+                current_streak = 1
+                current_start = int(trials.iloc[i])
+            else:
+                current_streak += 1
+            if current_streak > max_streak:
+                max_streak = current_streak
+                start = current_start
         else:
-            current_run = 0
-        max_run = max(max_run, current_run)
+            current_streak = 0
         i += 1
-    return max_run
+    return max_streak, start
 
 
 import doctest
@@ -121,12 +134,13 @@ doctest.testmod()
 
 # ### Exercise 4 (max 4 points)
 #
-# Use the function defined in Exercise 3 to check how many (Individual, Condition) pairs contain a run of 3 consecutive inactive trials (i.e., `Baseline < 1`). Note that each individual was tested exactly 3 times per condition; order the trials with `sort_values`.
+# Use the function defined in Exercise 3 to check how many (Individual, Condition) pairs have a streak of at least 2 consecutive active trials (i.e., `Baseline >= 1`). Note that each individual was tested exactly 3 times per condition; order the trials with `sort_values`.
 
-inactive = df.sort_values(['Individual', 'Condition', 'Trial']).copy()
-inactive['inactive'] = inactive['Baseline'] < 1
-runs = inactive.groupby(['Individual', 'Condition'])['inactive'].apply(longest_run)
-print((runs >= 3).sum())
+df_active = df.sort_values(['Individual', 'Condition', 'Trial']).copy()
+df_active['active'] = df_active['Baseline'] >= 1
+streak_len = df_active.groupby(['Individual', 'Condition']).apply(
+    lambda g: longest_streak(g['active'], g['Trial'])[0], include_groups=False)
+print((streak_len >= 2).sum())
 
 
 # ### Exercise 5 (max 4 points)
