@@ -73,7 +73,7 @@ import arviz as az # feel free to ignore the warning about the major refactoring
 
 pass
 
-# ### Exercise 2 (max 3 points)
+# ### Exercise 2 (max 2 points)
 #
 # Compute the mean `Shell Length` and the mean `Weight` for each `Infection status` and for each `Combo`.
 #
@@ -81,17 +81,19 @@ pass
 
 pass
 
-# ### Exercise 3 (max 5 points)
+# ### Exercise 3 (max 6 points)
 #
-# Define a function `longest_run` that takes a pandas Series of boolean values and returns the length of the longest consecutive run of `True` values in the Series.
+# Define a function `longest_streak` that takes two pandas Series of the same length, `active` (boolean values) and `trials` (integer trial numbers), and returns a tuple `(length, start)`: `length` is the length of the longest streak of consecutive trial numbers for which `active` is `True`, and `start` is the trial number at which that streak begins. A streak is broken whenever `active` is `False` or when two consecutive positions do not have adjacent trial numbers (e.g., trials 1 and 3 are not consecutive).
 #
-# The function must use a `while` loop to count the run. To get full marks you should declare correctly the type hints (the signature of the function) and add a doctest string.
+# If there is no streak, return `(0, 0)`.
+#
+# The function must use a `while` loop to count the streak. To get full marks you should declare correctly the type hints (the signature of the function) and add a doctest string.
 
 pass
 
 # ### Exercise 4 (max 4 points)
 #
-# Use the function defined in Exercise 3 to check how many (Individual, Condition) pairs contain a run of 3 consecutive inactive trials (i.e., `Baseline < 1`). Note that each individual was tested exactly 3 times per condition; order the trials with `sort_values`.
+# Use the function defined in Exercise 3 to check how many (Individual, Condition) pairs have a streak of at least 2 consecutive active trials (i.e., `Baseline >= 1`). Note that each individual was tested exactly 3 times per condition; order the trials with `sort_values`.
 
 pass
 
